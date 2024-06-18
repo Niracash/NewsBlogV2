@@ -95,30 +95,59 @@ namespace NewsBlog.Areas.Admin.Controllers
             {
                 return View(createPostViewModel);
             }
-            var post = await _db.Posts!.FirstOrDefaultAsync(x=> x.Id == createPostViewModel.Id);
-            if(post == null)
+
+            var post = await _db.Posts!.FirstOrDefaultAsync(x => x.Id == createPostViewModel.Id);
+            if (post == null)
             {
                 _notification.Error("Post not found");
                 return View();
             }
+
             post.Title = createPostViewModel.Title;
             post.Description = createPostViewModel.Description;
 
+            // Check if a new image is uploaded
             if (createPostViewModel.UploadImage != null)
             {
+                // Delete old image if it exists
+                if (!string.IsNullOrEmpty(post.ImageUrl))
+                {
+                    var oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, "images", post.ImageUrl);
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                    }
+                }
+                // Save new image
                 post.ImageUrl = SaveFile(createPostViewModel.UploadImage, "images");
+            }
+            else
+            {
+                // Retain the old image URL
+                post.ImageUrl = createPostViewModel.ImageUrl;
             }
 
             if (createPostViewModel.UploadVideo != null)
             {
+                if (!string.IsNullOrEmpty(post.VideoUrl))
+                {
+                    var oldVideoPath = Path.Combine(_webHostEnvironment.WebRootPath, "videos", post.VideoUrl);
+                    if (System.IO.File.Exists(oldVideoPath))
+                    {
+                        System.IO.File.Delete(oldVideoPath);
+                    }
+                }
                 post.VideoUrl = SaveFile(createPostViewModel.UploadVideo, "videos");
+            }
+            else
+            {
+                post.VideoUrl = createPostViewModel.VideoUrl;
             }
             await _db.SaveChangesAsync();
             _notification.Success("Post updated!");
             return RedirectToAction("Index", "Post", new { area = "Admin" });
-
-
         }
+
         [HttpPost]
         public async Task<IActionResult> Create(CreatePostViewModel createPostViewModel)
         {

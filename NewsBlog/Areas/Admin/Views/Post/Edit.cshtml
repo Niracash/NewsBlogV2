@@ -20,7 +20,9 @@
                         <div class="text-center mb-3">
                             @if (Model.ImageUrl != null)
                             {
-                                <img src="~/images/@Model.ImageUrl" class="img-fluid mb-2" id="blogimage" style="max-height: 200px;" />
+                                <div class="d-flex justify-content-center">
+                                    <img src="~/images/@Model.ImageUrl" class="img-fluid mb-2" id="blogimage" style="max-height: 200px;" />
+                                </div>
                             }
                             <label class="btn btn-outline-secondary btn-block">
                                 Upload Image
@@ -33,10 +35,12 @@
                         <div class="text-center mb-3">
                             @if (Model.VideoUrl != null)
                             {
-                                <video controls class="img-fluid mb-2" id="blogvideo" style="max-height: 200px;">
-                                    <source src="~/videos/@Model.VideoUrl" type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
+                                <div class="d-flex justify-content-center">
+                                    <video controls class="img-fluid mb-2" id="blogvideo" style="max-height: 200px;">
+                                        <source src="~/videos/@Model.VideoUrl" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                </div>
                             }
                             <label class="btn btn-outline-secondary btn-block">
                                 Upload Video
@@ -80,8 +84,11 @@
             if (file) {
                 var reader = new FileReader();
                 reader.onload = function (e) {
-                    document.getElementById('blogimage').src = e.target.result;
-                    document.getElementById('blogimage').style.display = 'block';
+                    var blogimage = document.getElementById('blogimage');
+                    blogimage.src = e.target.result;
+                    blogimage.style.display = 'block';
+                    blogimage.parentElement.style.display = 'flex';
+                    blogimage.parentElement.style.justifyContent = 'center';
                 }
                 reader.readAsDataURL(file);
             }
@@ -97,6 +104,8 @@
                     source.src = e.target.result;
                     video.load();
                     video.style.display = 'block';
+                    video.parentElement.style.display = 'flex';
+                    video.parentElement.style.justifyContent = 'center';
                 }
                 reader.readAsDataURL(file);
             }
