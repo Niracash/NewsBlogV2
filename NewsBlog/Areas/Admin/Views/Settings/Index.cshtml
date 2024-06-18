@@ -1,0 +1,77 @@
+﻿@model NewsBlog.ViewModels.SettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Updated column size to col-lg-6 for a wider form -->
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h4 class="card-title text-white">Settings</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Index" asp-controller="Settings" asp-area="Admin" enctype="multipart/form-data">
+                        <input type="hidden" asp-for="Id"/>
+                        <!-- Image upload section -->
+
+                        <!-- Text fields section -->
+                        <div class="mb-3">
+                            <label>Website Name</label>
+                            <input type="text" asp-for="Logo" class="form-control" />
+                            <span asp-validation-for="Logo" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Title</label>
+                            <input type="text" asp-for="Title" class="form-control" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label>Description</label>
+                            <input type="text" asp-for="Description" class="form-control" />
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label>Twitter</label>
+                            <input type="text" asp-for="TwitterUrl" class="form-control" />
+                            <span asp-validation-for="TwitterUrl" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Facebook</label>
+                            <input type="text" asp-for="FacebookUrl" class="form-control" />
+                            <span asp-validation-for="FacebookUrl" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Github</label>
+                            <input type="text" asp-for="GithubUrl" class="form-control" />
+                            <span asp-validation-for="GithubUrl" class="text-danger"></span>
+                        </div>
+
+                        <!-- Submit and Cancel buttons -->
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" class="btn btn-success btn-block">Save</button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a class="btn btn-danger btn-block" asp-action="Index" asp-controller="Post">Cancel</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(".custom-file").on("change", function () {
+            var fileName = $(this).val().split("\\").pop();
+            $(this).siblings(".custom-file-label").addClass("selected").html(fileName);
+            document.getElementById('blogimage').src = window.URL.createObjectURL(this.files[0])
+        });
+    </script>
+}

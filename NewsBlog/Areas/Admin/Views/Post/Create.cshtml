@@ -1,0 +1,95 @@
+﻿@model NewsBlog.ViewModels.CreatePostViewModel
+@{
+    ViewData["Title"] = "Create Post";
+}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card mt-5">
+                <div class="card-header bg-dark">
+                    <h4 class="card-title text-white">Create New Post</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" asp-controller="Post" asp-area="Admin" enctype="multipart/form-data">
+                        <!-- Image upload section -->
+                        <div class="text-center mb-4">
+                            <img src="~/images/uploadImage.jpg" class="img-fluid mb-2" id="blogimage" style="max-height: 200px; display: none;" />
+                            <label class="btn btn-outline-secondary btn-block">
+                                Upload Image
+                                <input type="file" asp-for="UploadImage" class="d-none" id="uploadImage" accept="image/*" />
+                            </label>
+                            <span asp-validation-for="UploadImage" class="text-danger"></span>
+                        </div>
+
+                        <!-- Video upload section -->
+                        <div class="text-center mb-4">
+                            <video controls class="img-fluid mb-2" id="blogvideo" style="max-height: 200px; display: none;">
+                                <source src="" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            <label class="btn btn-outline-secondary btn-block">
+                                Upload Video
+                                <input type="file" asp-for="UploadVideo" class="d-none" id="uploadVideo" accept="video/*" />
+                            </label>
+                            <span asp-validation-for="UploadVideo" class="text-danger"></span>
+                        </div>
+
+                        <!-- Text fields section -->
+                        <div class="mb-3">
+                            <label>Title</label>
+                            <input type="text" asp-for="Title" class="form-control" />
+                            <span asp-validation-for="Title" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label>Description</label>
+                            <textarea id="textEditor" asp-for="Description" class="form-control" rows="10" style="resize:none;"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- Submit and Cancel buttons -->
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" class="btn btn-success btn-block">Save</button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a class="btn btn-danger btn-block" asp-action="Index" asp-controller="Post">Cancel</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('uploadImage').addEventListener('change', function () {
+            var file = this.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('blogimage').src = e.target.result;
+                    document.getElementById('blogimage').style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('uploadVideo').addEventListener('change', function () {
+            var file = this.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    var video = document.getElementById('blogvideo');
+                    var source = video.getElementsByTagName('source')[0];
+                    source.src = e.target.result;
+                    video.load();
+                    video.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+}

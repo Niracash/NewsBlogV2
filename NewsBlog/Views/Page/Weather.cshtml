@@ -1,0 +1,17 @@
+﻿@model NewsBlog.Models.Weather
+
+@{
+    ViewData["Title"] = "Weather";
+}
+
+<div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+    <div class="card text-center">
+        <div class="card-body">
+            <h2 class="card-title">Weather</h2>
+            <p class="card-text"><strong>Description:</strong> @Model.Description</p>
+            <p class="card-text"><strong>Temperature:</strong> @Model.Temperature °C</p>
+            <p class="card-text"><strong>Humidity:</strong> @Model.Humidity %</p>
+            <p class="card-text"><strong>Wind Speed:</strong> @Model.WindSpeed m/s</p>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,88 @@
+﻿@using System.Text.RegularExpressions
+@using System.Net
+@using X.PagedList
+@using X.PagedList.Mvc.Core
+@using X.PagedList.Web.Common
+
+@model NewsBlog.ViewModels.HomeViewModel
+@{
+    ViewData["Title"] = "Home";
+}
+
+<!-- Page Header-->
+<div class="container-fluid">
+    <header class="my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="text-center mt-5">
+                    <h1>@Model.Title</h1>
+                    <span class="subheading">@Model.Description</span>
+                </div>
+            </div>
+        </div>
+    </header>
+</div>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            @foreach (var post in Model.Posts!)
+            {
+                <!-- Post preview-->
+                <div class="post-preview mb-5 shadow-lg p-4 bg-white rounded">
+                    <a asp-controller="Content" asp-action="Article" asp-route-slug="@post.Slug">
+                        @if (!string.IsNullOrEmpty(post.VideoUrl))
+                        {
+                            <div class="w-100 mb-3">
+                                <video width="100%" height="400" controls>
+                                    <source src="~/videos/@post.VideoUrl" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(post.ImageUrl))
+                        {
+                            <div class="w-100 mb-3">
+                                <img src="~/images/@post.ImageUrl" class="img-fluid rounded" style="object-fit:cover; height:400px; width:100%;">
+                            </div>
+                        }
+                        @{
+                            var decodedDescription = WebUtility.HtmlDecode(post.Description!);
+                            var cleanDescription = Regex.Replace(decodedDescription, "<.*?>", String.Empty);
+                            var displaySummary = cleanDescription.Length > 350
+                            ? cleanDescription.Substring(0, 250) + "..."
+                            : cleanDescription;
+                        }
+                        <h2 class="post-title">@post.Title</h2>
+                        <h6 class="post-subtitle">@displaySummary</h6>
+                    </a>
+                    <p class="post-meta text-end" style="font-size: 0.8em;">
+                        Posted by
+                        <span style="font-weight: bold;">@post.User!.FirstName @post.User.LastName</span>
+                        <br />
+                        <small>@post.CreatedAt.ToString("MMMM dd, yyyy HH:mm")</small>
+                    </p>
+                </div>
+                <hr class="my-4" />
+            }
+
+            Page @(Model?.Posts.PageCount < Model!.Posts.PageNumber ? 0 : Model!.Posts.PageNumber) of @Model!.Posts.PageCount
+            @Html.PagedListPager(Model.Posts, page => Url.Action("Index", new { page, sortOrder = ViewBag.CurrentSort, currentFilter = ViewBag.CurrentFilter }),
+                     new PagedListRenderOptions()
+            {
+                Display = PagedListDisplayMode.IfNeeded,
+                DisplayPageCountAndCurrentLocation = false,
+                DisplayLinkToFirstPage = PagedListDisplayMode.Always,
+                DisplayLinkToLastPage = PagedListDisplayMode.Always,
+                DisplayLinkToPreviousPage = PagedListDisplayMode.Always,
+                DisplayLinkToNextPage = PagedListDisplayMode.Always,
+                DisplayLinkToIndividualPages = true,
+                MaximumPageNumbersToDisplay = 5,
+                ContainerDivClasses = new List<string> { "d-flex", "justify-content-end" },
+                UlElementClasses = new List<string> { "pagination" },
+                LiElementClasses = new List<string> { "page-item" },
+                PageClasses = new List<string> { "page-link", "btn", "btn-primary" },
+                ActiveLiElementClass = "active"
+            })
+        </div>
+    </div>
+</div>

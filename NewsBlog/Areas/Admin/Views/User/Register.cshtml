@@ -1,0 +1,62 @@
+﻿@model NewsBlog.ViewModels.RegisterViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h4 class="card-title text-white">Create new user</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Register" asp-controller="User" asp-area="Admin">
+                        <div class="mb-2">
+                            <label>First Name</label>
+                            <input type="text" asp-for="FirstName" class="form-control" />
+                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Last Name</label>
+                            <input type="text" asp-for="LastName" class="form-control" />
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Username</label>
+                            <input type="text" asp-for="UserName" class="form-control" />
+                            <span asp-validation-for="UserName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Email</label>
+                            <input type="text" asp-for="Email" class="form-control" />
+                            <span asp-validation-for="Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Password</label>
+                            <input type="password" asp-for="Password" class="form-control" />
+                            <span asp-validation-for="Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Admin: </label>
+                            <input type="checkbox" asp-for="IsAdmin" class="custom-checkbox" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" class="btn btn-success btn-block">Save</button>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a class="btn btn-danger btn-block" asp-action="Index" asp-controller="User">Cancel</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
