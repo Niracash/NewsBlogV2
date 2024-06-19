@@ -10,5 +10,6 @@ namespace NewsBlog.Models
         
         //Relation
         public List<Post>? Posts { get; set; }
+        public bool Suspended { get; set; }
     }
 }

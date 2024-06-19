@@ -11,7 +11,7 @@ using NewsBlog.ViewModels;
 namespace NewsBlog.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles= "Admin")]
+    [Authorize(Roles= "SuperAdmin")]
     public class PageController : Controller
     {
         private readonly AppDbContext _db;

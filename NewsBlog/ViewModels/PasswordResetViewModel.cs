@@ -7,7 +7,8 @@ namespace NewsBlog.ViewModels
         public string? Id { get; set; }
         public string? UserName { get; set; }
         public string? Email { get; set; }
-
+        [Required]
+        public string? OldPassword { get; set; }
         [Required]
         public string? NewPassword { get; set; }
         [Compare(nameof(NewPassword))]

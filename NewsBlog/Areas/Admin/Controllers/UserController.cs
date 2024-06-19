@@ -15,13 +15,15 @@ namespace NewsBlog.Areas.Admin.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly INotyfService _notification;
+
         public UserController(UserManager<User> userManager, SignInManager<User> signInManager, INotyfService notification)
         {
             _userManager = userManager;
             _signInManager = signInManager;
-            _notification = notification;            
+            _notification = notification;
         }
-        [Authorize(Roles = "Admin")]
+
+        [Authorize(Roles = "Admin, SuperAdmin")]
         [HttpGet]
         public async Task<IActionResult> Index()
         {
@@ -33,43 +35,46 @@ namespace NewsBlog.Areas.Admin.Controllers
                 UserName = x.UserName,
                 Email = x.Email,
                 FirstName = x.FirstName,
-                LastName = x.LastName
+                LastName = x.LastName,
+                Suspended = x.Suspended // Include suspended status
             }).ToList();
+
             // Fetching role
-            foreach(var user in viewModel)
+            foreach (var user in viewModel)
             {
-                var getUser =  await _userManager.FindByIdAsync(user.Id);
-                var role = await _userManager.GetRolesAsync(getUser);
+                var getUser = await _userManager.FindByIdAsync(user.Id!);
+                var role = await _userManager.GetRolesAsync(getUser!);
                 user.Role = role.FirstOrDefault();
             }
 
             return View(viewModel);
         }
 
-        [Authorize(Roles ="Admin")]
+        [Authorize(Roles = "Admin, SuperAdmin")]
         [HttpGet]
         public IActionResult Register()
         {
             return View(new RegisterViewModel());
-
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, SuperAdmin")]
         [HttpPost]
         public async Task<IActionResult> Register(RegisterViewModel registerViewModel)
         {
             if (!ModelState.IsValid)
             {
-                return View(registerViewModel); 
+                return View(registerViewModel);
             }
-            var checkUserEmail = await _userManager.FindByEmailAsync(registerViewModel.Email);
-            if(checkUserEmail!= null)
+
+            var checkUserEmail = await _userManager.FindByEmailAsync(registerViewModel.Email!);
+            if (checkUserEmail != null)
             {
                 _notification.Error("Email already exists");
                 return View(registerViewModel);
             }
-            var checkUsername = await _userManager.FindByNameAsync(registerViewModel.UserName);
-            if(checkUsername != null)
+
+            var checkUsername = await _userManager.FindByNameAsync(registerViewModel.UserName!);
+            if (checkUsername != null)
             {
                 _notification.Error("Username is taken");
                 return View(registerViewModel);
@@ -83,19 +88,19 @@ namespace NewsBlog.Areas.Admin.Controllers
                 LastName = registerViewModel.LastName
             };
 
-            var result = await _userManager.CreateAsync(newUser, registerViewModel.Password);
+            var result = await _userManager.CreateAsync(newUser, registerViewModel.Password!);
             if (result.Succeeded)
             {
-                if (registerViewModel.IsAdmin)
+                if (User.IsInRole(Roles.SuperAdmin!) && registerViewModel.IsAdmin)
                 {
-                    await _userManager.AddToRoleAsync(newUser, Roles.Admin);
+                    await _userManager.AddToRoleAsync(newUser, Roles.Admin!);
                 }
                 else
                 {
-                    await _userManager.AddToRoleAsync(newUser, Roles.Author);
+                    await _userManager.AddToRoleAsync(newUser, Roles.Author!);
                 }
                 _notification.Success("User is created!");
-                return RedirectToAction("Index", "User", new {area = "Admin"});
+                return RedirectToAction("Index", "User", new { area = "Admin" });
             }
             else
             {
@@ -104,15 +109,15 @@ namespace NewsBlog.Areas.Admin.Controllers
             return View(registerViewModel);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, SuperAdmin")]
         [HttpGet]
         public async Task<IActionResult> PasswordReset(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
-            if(user == null)
+            if (user == null)
             {
                 _notification.Error("User not found");
-                return View();
+                return RedirectToAction(nameof(Index));
             }
             var viewModel = new PasswordResetViewModel()
             {
@@ -121,9 +126,9 @@ namespace NewsBlog.Areas.Admin.Controllers
                 Email = user.Email
             };
             return View(viewModel);
-
         }
-        [Authorize(Roles = "Admin")]
+
+        [Authorize(Roles = "Admin, SuperAdmin")]
         [HttpPost]
         public async Task<IActionResult> PasswordReset(PasswordResetViewModel passwordResetViewModel)
         {
@@ -131,26 +136,36 @@ namespace NewsBlog.Areas.Admin.Controllers
             {
                 return View(passwordResetViewModel);
             }
-            var user = await _userManager.FindByIdAsync(passwordResetViewModel.Id);
+
+            var user = await _userManager.FindByIdAsync(passwordResetViewModel.Id!);
             if (user == null)
             {
                 _notification.Error("User not found");
                 return View(passwordResetViewModel);
             }
 
+            var passwordCheck = await _userManager.CheckPasswordAsync(user, passwordResetViewModel.OldPassword!);
+            if (!passwordCheck)
+            {
+                _notification.Error("Old password is incorrect");
+                return View(passwordResetViewModel);
+            }
+
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var result = await _userManager.ResetPasswordAsync(user, token, passwordResetViewModel.NewPassword);
+            var result = await _userManager.ResetPasswordAsync(user, token, passwordResetViewModel.NewPassword!);
             if (result.Succeeded)
             {
-                _notification.Success("Password successfully reseted");
+                _notification.Success("Password successfully reset");
                 return RedirectToAction(nameof(Index));
-
             }
             else
             {
-                _notification.Error("Password should contain at least 8 letters, a capital letter and a special character.");
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                return View(passwordResetViewModel);
             }
-            return View(passwordResetViewModel);
         }
 
         [HttpGet("Login")]
@@ -162,6 +177,7 @@ namespace NewsBlog.Areas.Admin.Controllers
             }
             return RedirectToAction("Index", "Post", new { area = "Admin" });
         }
+
         [HttpPost("Login")]
         public async Task<IActionResult> Login(LoginViewModel loginViewModel)
         {
@@ -175,22 +191,28 @@ namespace NewsBlog.Areas.Admin.Controllers
                 _notification.Error("Username not found");
                 return View(loginViewModel);
             }
-            var verifyPassword = await _userManager.CheckPasswordAsync(findUser, loginViewModel.Password);
-            if(!verifyPassword)
+            if (findUser.Suspended)
+            {
+                _notification.Error("Your account is suspended.");
+                return View(loginViewModel);
+            }
+            var verifyPassword = await _userManager.CheckPasswordAsync(findUser, loginViewModel.Password!);
+            if (!verifyPassword)
             {
                 _notification.Error("Wrong password");
                 return View(loginViewModel);
             }
-            await _signInManager.PasswordSignInAsync(loginViewModel.Username, loginViewModel.Password, loginViewModel.RememberMe, true);
+            await _signInManager.PasswordSignInAsync(loginViewModel.Username!, loginViewModel.Password!, loginViewModel.RememberMe, true);
             _notification.Success("Logged in!");
-            return RedirectToAction("Index", "Post", new {area="Admin"});
+            return RedirectToAction("Index", "Post", new { area = "Admin" });
         }
+
         [HttpPost]
         [Authorize]
         public IActionResult Logout()
         {
             _signInManager.SignOutAsync();
-            return RedirectToAction("Index", "Home", new {area = ""});
+            return RedirectToAction("Index", "Home", new { area = "" });
         }
 
         [HttpGet("NoAccess")]
@@ -198,6 +220,77 @@ namespace NewsBlog.Areas.Admin.Controllers
         public IActionResult NoAccess()
         {
             return View();
+        }
+
+        [Authorize(Roles = "Admin, SuperAdmin")]
+        [HttpPost]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
+            {
+                _notification.Error("User not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Check the role of the logged-in user
+            var currentUser = await _userManager.GetUserAsync(User);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+
+            if (user.Id == currentUser?.Id)
+            {
+                _notification.Error("You cannot delete yourself");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (currentUserRoles.Contains(Roles.SuperAdmin!) || (currentUserRoles.Contains(Roles.Admin!) && (await _userManager.IsInRoleAsync(user, Roles.Author!))))
+            {
+                var result = await _userManager.DeleteAsync(user);
+                if (result.Succeeded)
+                {
+                    _notification.Success("User deleted successfully");
+                }
+                else
+                {
+                    _notification.Error("Permission denied!");
+                }
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [Authorize(Roles = "Admin, SuperAdmin")]
+        [HttpPost]
+        public async Task<IActionResult> ToggleSuspend(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
+            {
+                _notification.Error("User not found");
+                return RedirectToAction(nameof(Index));
+            }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser!);
+
+            if (user.Id == currentUser?.Id)
+            {
+                _notification.Error("You cannot suspend yourself");
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (currentUserRoles.Contains(Roles.SuperAdmin!) || (currentUserRoles.Contains(Roles.Admin!) && (await _userManager.IsInRoleAsync(user, Roles.Author!))))
+            {
+                user.Suspended = !user.Suspended; // Toggle the suspended status
+                await _userManager.UpdateAsync(user);
+                _notification.Success($"User {(user.Suspended ? "suspended" : "unsuspended")} successfully");
+            }
+            else
+            {
+                _notification.Error("Permission denied!");
+            }
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }

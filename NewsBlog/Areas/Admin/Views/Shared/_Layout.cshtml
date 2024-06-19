@@ -51,7 +51,7 @@
             </li>
 
 
-            @if (User.IsInRole("Admin"))
+            @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
             {
                 <!-- Nav Item - Dashboard -->
                 <li class="nav-item active">

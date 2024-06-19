@@ -328,6 +328,9 @@ namespace NewsBlog.Migrations
                     b.Property<string>("LastName")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("Suspended")
+                        .HasColumnType("bit");
+
                     b.HasDiscriminator().HasValue("User");
                 });
 

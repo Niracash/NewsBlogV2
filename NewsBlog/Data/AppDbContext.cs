@@ -12,6 +12,7 @@ namespace NewsBlog.Data
         public DbSet<Post>? Posts { get; set; }
         public DbSet<Page>? Pages { get; set; }
         public DbSet<Settings>? Settings { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
 
     }

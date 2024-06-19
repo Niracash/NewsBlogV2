@@ -26,6 +26,10 @@ builder.Services.AddIdentity<User, IdentityRole>()
 builder.Services.AddScoped<IDataInitializer, DataInitializer>();
 builder.Services.AddNotyf(config => { config.DurationInSeconds = 10; config.IsDismissable = true; config.Position = NotyfPosition.BottomRight; });
 
+builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddHttpContextAccessor();
+
+
 //Add cookies
 
 builder.Services.ConfigureApplicationCookie(options =>

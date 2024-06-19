@@ -10,7 +10,7 @@ using NewsBlog.ViewModels;
 namespace NewsBlog.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public class SettingsController : Controller
     {
         private readonly AppDbContext _db;

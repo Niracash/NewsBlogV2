@@ -1,7 +1,14 @@
 ﻿@model NewsBlog.ViewModels.RegisterViewModel
+@using Microsoft.AspNetCore.Identity;
+@inject UserManager<User> _userManager;
+@using NewsBlog.Utilities;
+
 @{
     ViewData["Title"] = "Register";
+    var loggedInUser = _userManager.GetUserAsync(User).Result;
+    var isSuperAdmin = _userManager.IsInRoleAsync(loggedInUser, Roles.SuperAdmin).Result;
 }
+
 <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-lg-4">
@@ -41,10 +48,13 @@
                             <span asp-validation-for="Password" class="text-danger"></span>
                         </div>
 
-                        <div class="mb-2">
-                            <label>Admin: </label>
-                            <input type="checkbox" asp-for="IsAdmin" class="custom-checkbox" />
-                        </div>
+                        @if (isSuperAdmin)
+                        {
+                            <div class="mb-2">
+                                <label>Admin: </label>
+                                <input type="checkbox" asp-for="IsAdmin" class="custom-checkbox" />
+                            </div>
+                        }
 
                         <div class="row">
                             <div class="col-md-6 mb-2">
