@@ -14,6 +14,7 @@ namespace NewsBlog.ViewModels
         [ImageOrVideoRequired]
         public IFormFile? UploadVideo { get; set; }
         [Required]
+        [StringLength(150)]
         public string? Title { get; set; }
         [Required]
         public string? Description { get; set; }

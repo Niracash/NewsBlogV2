@@ -20,25 +20,25 @@
                     <form asp-action="Register" asp-controller="User" asp-area="Admin">
                         <div class="mb-2">
                             <label>First Name</label>
-                            <input type="text" asp-for="FirstName" class="form-control" />
+                            <input type="text" asp-for="FirstName" class="form-control" oninput="capitalizeAndTrim(this)" />
                             <span asp-validation-for="FirstName" class="text-danger"></span>
                         </div>
 
                         <div class="mb-2">
                             <label>Last Name</label>
-                            <input type="text" asp-for="LastName" class="form-control" />
+                            <input type="text" asp-for="LastName" class="form-control" oninput="capitalizeAndTrim(this)" />
                             <span asp-validation-for="LastName" class="text-danger"></span>
                         </div>
 
                         <div class="mb-2">
                             <label>Username</label>
-                            <input type="text" asp-for="UserName" class="form-control" />
+                            <input type="text" asp-for="UserName" class="form-control" oninput="trimSpaces(this)" />
                             <span asp-validation-for="UserName" class="text-danger"></span>
                         </div>
 
                         <div class="mb-2">
                             <label>Email</label>
-                            <input type="text" asp-for="Email" class="form-control" />
+                            <input type="text" asp-for="Email" class="form-control" oninput="trimSpaces(this)" />
                             <span asp-validation-for="Email" class="text-danger"></span>
                         </div>
 
@@ -70,3 +70,16 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function capitalizeAndTrim(input) {
+            input.value = input.value.replace(/\s+/g, ' ').trim().toLowerCase().replace(/(?:^|\s)\S/g, function (a) { return a.toUpperCase(); });
+        }
+
+        function trimSpaces(input) {
+            input.value = input.value.replace(/\s+/g, '');
+        }
+    </script>
+}

@@ -1,4 +1,6 @@
-﻿namespace NewsBlog.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace NewsBlog.Models
 {
     public class Post
     {
@@ -11,5 +13,6 @@
         public User? User { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public string? Slug { get; set; }
+        public string? AuthorName { get; set; }
     }
 }

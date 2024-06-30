@@ -7,22 +7,26 @@ using NewsBlog.Data;
 using NewsBlog.Models;
 using NewsBlog.Utilities;
 using NewsBlog.ViewModels;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NewsBlog.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles= "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin")]
     public class PageController : Controller
     {
         private readonly AppDbContext _db;
         private readonly INotyfService _notification;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly AuditLogService _auditLogService;
 
-        public PageController(AppDbContext db, INotyfService notification, IWebHostEnvironment webHostEnvironment)
+        public PageController(AppDbContext db, INotyfService notification, IWebHostEnvironment webHostEnvironment, AuditLogService auditLogService)
         {
             _db = db;
             _notification = notification;
             _webHostEnvironment = webHostEnvironment;
+            _auditLogService = auditLogService;
         }
 
         [HttpGet]
@@ -38,6 +42,7 @@ namespace NewsBlog.Areas.Admin.Controllers
 
             return View(pageViewModel);
         }
+
         [HttpPost]
         public async Task<IActionResult> About(PageViewModel pageViewModel)
         {
@@ -45,32 +50,53 @@ namespace NewsBlog.Areas.Admin.Controllers
             {
                 return View(pageViewModel);
             }
+
             var aboutPage = await _db.Pages!.FirstOrDefaultAsync(x => x.Slug == "about");
-            if(aboutPage == null)
+            if (aboutPage == null)
             {
                 _notification.Error("Page not found");
                 return View();
             }
-            aboutPage.Title = pageViewModel.Title;
-            aboutPage.Description = pageViewModel.Description;
+
+            // Compare original and new values for logging
+            var changes = new List<string>();
+            if (aboutPage.Title != pageViewModel.Title)
+            {
+                changes.Add("Title");
+                aboutPage.Title = pageViewModel.Title;
+            }
+            if (aboutPage.Description != pageViewModel.Description)
+            {
+                changes.Add("Description");
+                aboutPage.Description = pageViewModel.Description;
+            }
 
             await _db.SaveChangesAsync();
             _notification.Success("Page updated!");
+
+            if (changes.Count > 0)
+            {
+                var changesString = string.Join(", ", changes);
+                await _auditLogService.LogAsync("Page Edited", $"Page <strong>About</strong> was edited by <strong>{User.Identity!.Name}</strong>. Changes: <strong>{changesString}<strong>.");
+            }
+
             return RedirectToAction("About", "Page", new { area = "Admin" });
         }
+
         [HttpGet]
         public async Task<IActionResult> Contact()
         {
-            var aboutPage = await _db.Pages!.FirstOrDefaultAsync(x => x.Slug == "contact");
+            var contactPage = await _db.Pages!.FirstOrDefaultAsync(x => x.Slug == "contact");
             var pageViewModel = new PageViewModel()
             {
-                Id = aboutPage!.Id,
-                Title = aboutPage.Title,
-                Description = aboutPage.Description,
+                Id = contactPage!.Id,
+                Title = contactPage.Title,
+                Description = contactPage.Description,
             };
 
             return View(pageViewModel);
         }
+
         [HttpPost]
         public async Task<IActionResult> Contact(PageViewModel pageViewModel)
         {
@@ -78,20 +104,37 @@ namespace NewsBlog.Areas.Admin.Controllers
             {
                 return View(pageViewModel);
             }
+
             var contactPage = await _db.Pages!.FirstOrDefaultAsync(x => x.Slug == "contact");
             if (contactPage == null)
             {
                 _notification.Error("Page not found");
                 return View();
             }
-            contactPage.Title = pageViewModel.Title;
-            contactPage.Description = pageViewModel.Description;
 
+            // Compare original and new values for logging
+            var changes = new List<string>();
+            if (contactPage.Title != pageViewModel.Title)
+            {
+                changes.Add("Title");
+                contactPage.Title = pageViewModel.Title;
+            }
+            if (contactPage.Description != pageViewModel.Description)
+            {
+                changes.Add("Description");
+                contactPage.Description = pageViewModel.Description;
+            }
 
             await _db.SaveChangesAsync();
             _notification.Success("Page updated!");
+
+            if (changes.Count > 0)
+            {
+                var changesString = string.Join(", ", changes);
+                await _auditLogService.LogAsync("Page Edited", $"Page <strong>Contact</strong> was edited by <strong>{User.Identity!.Name}</strong>. Changes: <strong>{changesString}<strong>.");
+            }
+
             return RedirectToAction("Contact", "Page", new { area = "Admin" });
         }
-
     }
 }

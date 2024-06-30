@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NewsBlog.Data;
 using NewsBlog.Models;
 using NewsBlog.Utilities;
 using NewsBlog.ViewModels;
+using System.Globalization;
 
 namespace NewsBlog.Areas.Admin.Controllers
 {
@@ -15,12 +17,16 @@ namespace NewsBlog.Areas.Admin.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly INotyfService _notification;
+        private readonly AuditLogService _auditLogService;
+        private readonly AppDbContext _db;
 
-        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, INotyfService notification)
+        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, INotyfService notification, AuditLogService auditLogService, AppDbContext db)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _notification = notification;
+            _auditLogService = auditLogService;
+            _db = db;
         }
 
         [Authorize(Roles = "Admin, SuperAdmin")]
@@ -66,6 +72,12 @@ namespace NewsBlog.Areas.Admin.Controllers
                 return View(registerViewModel);
             }
 
+            // Trim spaces and capitalize first letters
+            registerViewModel.Email = registerViewModel.Email?.Trim();
+            registerViewModel.UserName = registerViewModel.UserName?.Trim();
+            registerViewModel.FirstName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(registerViewModel.FirstName?.Trim().ToLower());
+            registerViewModel.LastName = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(registerViewModel.LastName?.Trim().ToLower());
+
             var checkUserEmail = await _userManager.FindByEmailAsync(registerViewModel.Email!);
             if (checkUserEmail != null)
             {
@@ -91,15 +103,21 @@ namespace NewsBlog.Areas.Admin.Controllers
             var result = await _userManager.CreateAsync(newUser, registerViewModel.Password!);
             if (result.Succeeded)
             {
+                string role = Roles.Author; // Default role is Author
                 if (User.IsInRole(Roles.SuperAdmin!) && registerViewModel.IsAdmin)
                 {
                     await _userManager.AddToRoleAsync(newUser, Roles.Admin!);
+                    role = Roles.Admin;
                 }
                 else
                 {
                     await _userManager.AddToRoleAsync(newUser, Roles.Author!);
                 }
                 _notification.Success("User is created!");
+
+                // Log the creation of the user with role details
+                await _auditLogService.LogAsync("User Created", $"User <strong>{newUser.UserName}</strong> was created by <strong>{User.Identity!.Name}</strong> and given the <strong>{role}</strong> role.");
+
                 return RedirectToAction("Index", "User", new { area = "Admin" });
             }
             else
@@ -156,6 +174,10 @@ namespace NewsBlog.Areas.Admin.Controllers
             if (result.Succeeded)
             {
                 _notification.Success("Password successfully reset");
+
+                // Log the password reset
+                await _auditLogService.LogAsync("Password Reset", $"Password for user <strong>{user.UserName}</strong> was reset by <strong>{User.Identity!.Name}</strong>.");
+
                 return RedirectToAction(nameof(Index));
             }
             else
@@ -204,14 +226,22 @@ namespace NewsBlog.Areas.Admin.Controllers
             }
             await _signInManager.PasswordSignInAsync(loginViewModel.Username!, loginViewModel.Password!, loginViewModel.RememberMe, true);
             _notification.Success("Logged in!");
+
+            // Log the login
+            await _auditLogService.LogAsync("User Logged In", $"User <strong>{findUser.UserName}</strong> logged in.");
+
             return RedirectToAction("Index", "Post", new { area = "Admin" });
         }
 
         [HttpPost]
         [Authorize]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            _signInManager.SignOutAsync();
+            await _signInManager.SignOutAsync();
+
+            // Log the logout
+            await _auditLogService.LogAsync("User Logged Out", $"User <strong>{User.Identity!.Name}</strong> logged out.");
+
             return RedirectToAction("Index", "Home", new { area = "" });
         }
 
@@ -245,10 +275,23 @@ namespace NewsBlog.Areas.Admin.Controllers
 
             if (currentUserRoles.Contains(Roles.SuperAdmin!) || (currentUserRoles.Contains(Roles.Admin!) && (await _userManager.IsInRoleAsync(user, Roles.Author!))))
             {
+                // Nullify the UserId in related posts before deleting the user
+                var relatedPosts = await _db.Posts.Where(p => p.UserId == user.Id).ToListAsync();
+                foreach (var post in relatedPosts)
+                {
+                    post.UserId = null;
+                    post.AuthorName = $"{user.FirstName} {user.LastName}";
+                }
+                await _db.SaveChangesAsync();
+
+                // Delete the user
                 var result = await _userManager.DeleteAsync(user);
                 if (result.Succeeded)
                 {
                     _notification.Success("User deleted successfully");
+
+                    // Log the deletion of the user
+                    await _auditLogService.LogAsync("User Deleted", $"User <strong>{user.UserName}</strong> was deleted by <strong>{User.Identity!.Name}</strong>.");
                 }
                 else
                 {
@@ -284,6 +327,9 @@ namespace NewsBlog.Areas.Admin.Controllers
                 user.Suspended = !user.Suspended; // Toggle the suspended status
                 await _userManager.UpdateAsync(user);
                 _notification.Success($"User {(user.Suspended ? "suspended" : "unsuspended")} successfully");
+
+                // Log the suspension/unsuspension of the user
+                await _auditLogService.LogAsync(user.Suspended ? "User Suspended" : "User Unsuspended", $"User <strong>{user.UserName}</strong> was {(user.Suspended ? "suspended" : "unsuspended")} by <strong>{User.Identity!.Name}</strong>.");
             }
             else
             {

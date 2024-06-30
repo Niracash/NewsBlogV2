@@ -1,6 +1,7 @@
 ﻿@using X.PagedList
 @using X.PagedList.Mvc.Core
-@using X.PagedList.Web.Common
+@using System.Net;
+@using System.Text.RegularExpressions;
 
 @model IPagedList<NewsBlog.ViewModels.PostListViewModel>
 @{
@@ -8,23 +9,35 @@
 }
 
 <div class="container-fluid">
-    <a class="btn btn-success mb-3" asp-action="Create" asp-controller="Post" asp-area="Admin">Create post</a>
+    <a class="btn btn-success mb-3" asp-action="Create" asp-controller="Post" asp-area="Admin">Create Post</a>
     <div class="card">
-        <div class="card-header bg-dark">
-            <h4 class="card-title text-white">Posts List</h4>
+        <div class="card-header bg-dark text-white">
+            <h4 class="card-title m-0">Posts List</h4>
         </div>
-        <div class="card-body" style="background-color: lightgray; padding: 20px;">
-            <div class="row">
+        <div class="card-body bg-light">
+            <div class="input-group mb-3">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search Posts" value="@ViewBag.CurrentFilter" />
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="button" onclick="clearSearch()">Clear</button>
+                </div>
+            </div>
+            <div id="postsContainer" class="row">
                 @foreach (var post in Model)
                 {
-                    <div class="col-lg-4 col-md-6 col-sm-12 mb-4 d-flex align-items-stretch">
-                        <div class="card h-100 w-100">
+                    var decodedDescription = WebUtility.HtmlDecode(post.Description!);
+                    var cleanDescription = Regex.Replace(decodedDescription, "<.*?>", String.Empty);
+                    var displaySummary = cleanDescription.Length > 350
+                    ? cleanDescription.Substring(0, 250) + "..."
+                    : cleanDescription;
+
+                    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
+                        <div class="card h-100">
                             <div class="card-body d-flex flex-column">
                                 <div class="media-container mb-3">
                                     @if (!string.IsNullOrEmpty(post.VideoUrl))
                                     {
                                         <div class="embed-responsive embed-responsive-16by9">
-                                            <video controls class="embed-responsive-item" style="border-radius: 5px;">
+                                            <video controls class="embed-responsive-item rounded" style="border-radius: 5px;">
                                                 <source src="~/videos/@post.VideoUrl" type="video/mp4">
                                                 Your browser does not support the video tag.
                                             </video>
@@ -33,27 +46,29 @@
                                     else if (!string.IsNullOrEmpty(post.ImageUrl))
                                     {
                                         <div class="embed-responsive embed-responsive-16by9">
-                                            <img src="~/images/@post.ImageUrl" class="embed-responsive-item" style="border-radius: 5px;">
+                                            <img src="~/images/@post.ImageUrl" class="embed-responsive-item rounded">
                                         </div>
                                     }
                                     else
                                     {
                                         <div class="embed-responsive embed-responsive-16by9">
-                                            <img src="~/images/uploadImage.jpg" class="embed-responsive-item" style="border-radius: 5px;">
+                                            <img src="~/images/uploadImage.jpg" class="embed-responsive-item rounded">
                                         </div>
                                     }
                                 </div>
-                                <h4 class="card-title" style="font-weight: bold; color: #353839;">@post.Title</h4>
-                                <p class="card-text">
-                                    @Html.Raw(post.Description!.Length <= 200 ? post.Description : post.Description.Substring(0, 200) + "...")
-                                </p>
-                                <p class="text-muted" style="font-size: 0.9rem;">@post.CreatedAt</p>
+                                <h4 class="card-title text-dark">@post.Title</h4>
+                                <h6 class="card-subtitle text-muted">@displaySummary</h6>
+                                <br />
                                 <div class="mt-auto">
-                                    <h6 class="fw-bold">Writer: @post.AuthorName</h6>
                                     <div class="d-flex justify-content-between">
-                                        <a class="btn btn-warning btn-sm" asp-area="Admin" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">Edit</a>
+                                    <p class="text-muted" style="font-size: 0.8rem;">@post.CreatedAt</p>
+                                    <h6 class="fw-bold">Writer: @post.AuthorName</h6>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <a class="btn btn-warning btn-sm flex-fill mx-1" asp-area="Admin" asp-controller="Post" asp-action="Edit" asp-route-id="@post.Id">Edit</a>
+                                        <a class="btn btn-primary btn-sm flex-fill mx-1" asp-controller="Content" asp-action="Article" asp-route-slug="@post.Slug" target="_blank">Go to Content</a>
                                         <form asp-area="Admin" asp-controller="Post" asp-action="Delete" asp-route-id="@post.Id" method="post" onsubmit="return confirm('Are you sure about deleting the post?')" class="d-inline">
-                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn btn-danger btn-sm flex-fill mx-1">Delete</button>
                                         </form>
                                     </div>
                                 </div>
@@ -64,24 +79,52 @@
             </div>
         </div>
         <div class="card-footer">
-            Page @(Model?.PageCount < Model!.PageNumber ? 0 : Model!.PageNumber) of @Model!.PageCount
-            @Html.PagedListPager(Model, page => Url.Action("Index", new { page, sortOrder = ViewBag.CurrentSort, currentFilter = ViewBag.CurrentFilter }),
-                     new PagedListRenderOptions()
-            {
-                Display = PagedListDisplayMode.IfNeeded,
-                DisplayPageCountAndCurrentLocation = false,
-                DisplayLinkToFirstPage = PagedListDisplayMode.Always,
-                DisplayLinkToLastPage = PagedListDisplayMode.Always,
-                DisplayLinkToPreviousPage = PagedListDisplayMode.Always,
-                DisplayLinkToNextPage = PagedListDisplayMode.Always,
-                DisplayLinkToIndividualPages = true,
-                MaximumPageNumbersToDisplay = 6,
-                ContainerDivClasses = new List<string> { "d-flex", "justify-content-center" },
-                UlElementClasses = new List<string> { "pagination" },
-                LiElementClasses = new List<string> { "page-item" },
-                PageClasses = new List<string> { "page-link", "btn", "btn-primary" },
-                ActiveLiElementClass = "active"
-            })
+            <div id="paginationContainer" class="d-flex justify-content-center">
+                @Html.PagedListPager(Model, page => Url.Action("Index", new { page, searchString = ViewBag.CurrentFilter }),
+                         new PagedListRenderOptions()
+                {
+                    Display = PagedListDisplayMode.IfNeeded,
+                    DisplayPageCountAndCurrentLocation = false,
+                    DisplayLinkToFirstPage = PagedListDisplayMode.Always,
+                    DisplayLinkToLastPage = PagedListDisplayMode.Always,
+                    DisplayLinkToPreviousPage = PagedListDisplayMode.Always,
+                    DisplayLinkToNextPage = PagedListDisplayMode.Always,
+                    DisplayLinkToIndividualPages = true,
+                    MaximumPageNumbersToDisplay = 6,
+                    ContainerDivClasses = new List<string> { "pagination-container" },
+                    UlElementClasses = new List<string> { "pagination" },
+                    LiElementClasses = new List<string> { "page-item" },
+                    PageClasses = new List<string> { "page-link", "btn", "btn-primary" },
+                    ActiveLiElementClass = "active"
+                })
+            </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#searchInput").on("keyup", function () {
+                var value = $(this).val().toLowerCase();
+                $.get('@Url.Action("Index", "Post", new { area = "Admin" })', { searchString: value }, function (data) {
+                    var postsContainer = $(data).find("#postsContainer").html();
+                    $("#postsContainer").html(postsContainer);
+                    var paginationContainer = $(data).find("#paginationContainer").html();
+                    $("#paginationContainer").html(paginationContainer);
+                    if (value) {
+                        history.pushState({}, '', '@Url.Action("Index", "Post", new { area = "Admin" })' + '?searchString=' + value);
+                    } else {
+                        history.pushState({}, '', '@Url.Action("Index", "Post", new { area = "Admin" })');
+                    }
+                });
+            });
+        });
+
+        function clearSearch() {
+            $('#searchInput').val('');
+            $('#searchInput').keyup();
+        }
+    </script>
+}

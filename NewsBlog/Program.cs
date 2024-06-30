@@ -29,7 +29,6 @@ builder.Services.AddNotyf(config => { config.DurationInSeconds = 10; config.IsDi
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddHttpContextAccessor();
 
-
 //Add cookies
 
 builder.Services.ConfigureApplicationCookie(options =>

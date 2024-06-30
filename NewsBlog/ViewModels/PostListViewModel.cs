@@ -12,5 +12,6 @@ namespace NewsBlog.ViewModels
 
         public string? AuthorName { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? Slug { get; set; }
     }
 }

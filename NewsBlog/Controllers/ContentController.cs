@@ -5,7 +5,6 @@ using NewsBlog.Data;
 using NewsBlog.ViewModels;
 using HtmlAgilityPack;
 
-
 namespace NewsBlog.Controllers
 {
     public class ContentController : Controller
@@ -18,6 +17,7 @@ namespace NewsBlog.Controllers
             _db = db;
             _notification = notification;
         }
+
         [HttpGet("[controller]/{slug}")]
         public IActionResult Article(string slug)
         {
@@ -38,7 +38,7 @@ namespace NewsBlog.Controllers
             {
                 Id = article.Id,
                 Title = article.Title,
-                AuthorName = article.User != null ? article.User.FirstName + " " + article.User.LastName : "Unknown",
+                AuthorName = article.User != null ? article.User.FirstName + " " + article.User.LastName : article.AuthorName,
                 CreatedAt = article.CreatedAt,
                 ImageUrl = article.ImageUrl,
                 Description = article.Description,

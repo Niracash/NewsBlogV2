@@ -1,14 +1,12 @@
 ﻿@using Microsoft.AspNetCore.Identity;
 @inject UserManager<User> _userManager;
 @{
-    var loggedInUser = new User();
-    loggedInUser = _userManager.Users?.FirstOrDefault(x => x.UserName == User.Identity!.Name);
+    var loggedInUser = _userManager.Users?.FirstOrDefault(x => x.UserName == User.Identity!.Name);
 }
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -25,23 +23,50 @@
     <link href="~/AdminDashboard/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="https//cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
 
+    <style>
+        /* Ensure the sidebar toggle button is always at the bottom */
+        .sidebar {
+            position: relative;
+        }
+
+            .sidebar .sidebar-toggler {
+                position: absolute;
+                bottom: 0;
+                width: 100%;
+                text-align: center;
+            }
+    </style>
 </head>
 
 <body id="page-top">
-
     <!-- Page Wrapper -->
     <div id="wrapper">
-
         <!-- Sidebar -->
         <ul class="navbar-nav bg-gradient-dark sidebar sidebar-dark accordion" id="accordionSidebar">
-             
             <!-- Sidebar - Brand -->
-            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.html">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="@Url.Action("Index", "Home", new { area = "" })" target="_blank">
                 <div class="sidebar-brand-text mx-3">NewsBlog</div>
             </a>
 
-            <!-- Divider -->
+            <!-- Nav Item - User Information -->
+            <li class="nav-item active">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUser"
+                   aria-expanded="true" aria-controls="collapseUser">
+                    <i class="fas fa-fw fa-user-circle"></i>
+                    <span class="text-success">@loggedInUser?.FirstName @loggedInUser?.LastName</span>
+                </a>
+                <div id="collapseUser" class="collapse" aria-labelledby="headingUser" data-parent="#accordionSidebar">
+                    <div class="py-2 collapse-inner rounded">
+                        <form asp-action="Logout" asp-controller="User" asp-area="Admin" method="post">
+                            <button type="submit" class="btn btn-danger btn-block">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </li>
 
+            <hr class="sidebar-divider my-0">
+
+            <!-- Divider -->
             <!-- Nav Item - Dashboard -->
             <li class="nav-item active">
                 <a class="nav-link" asp-action="Index" asp-controller="Post" asp-area="Admin">
@@ -50,10 +75,9 @@
                 </a>
             </li>
 
-
             @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
             {
-                <!-- Nav Item - Dashboard -->
+                <!-- Nav Item - User Management -->
                 <li class="nav-item active">
                     <a class="nav-link" asp-action="Index" asp-controller="User" asp-area="Admin">
                         <i class="fas fa-fw fa-user"></i>
@@ -62,8 +86,10 @@
                 </li>
 
                 <hr class="sidebar-divider my-0">
+            }
 
-
+            @if (User.IsInRole("SuperAdmin"))
+            {
                 <!-- Nav Item - Utilities Collapse Menu -->
                 <li class="nav-item active">
                     <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
@@ -77,12 +103,11 @@
                             <a class="bg-white collapse-item" asp-area="Admin" asp-controller="Page" asp-action="Contact">Contact</a>
                         </div>
                     </div>
-
                 </li>
 
                 <hr class="sidebar-divider my-0">
 
-                <!-- Nav Item - Dashboard -->
+                <!-- Nav Item - Settings -->
                 <li class="nav-item active">
                     <a class="nav-link" asp-action="Index" asp-controller="Settings" asp-area="Admin">
                         <i class="fas fa-fw fa-wrench"></i>
@@ -90,84 +115,53 @@
                     </a>
                 </li>
 
+                <hr class="sidebar-divider my-0">
+
+                <!-- Nav Item - Audit Log -->
+                <li class="nav-item active">
+                    <a class="nav-link" asp-action="Index" asp-controller="AuditLog" asp-area="Admin">
+                        <i class="fas fa-fw fa-book"></i>
+                        <span class="text-danger">Audit Log</span>
+                    </a>
+                </li>
             }
 
             <!-- Sidebar Toggler (Sidebar) -->
-            <div class="text-center d-none d-md-inline">
+            <div class="sidebar-toggler text-center d-none d-md-inline">
                 <button class="rounded-circle border-0" id="sidebarToggle"></button>
             </div>
-
         </ul>
         <!-- End of Sidebar -->
         <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
-
             <!-- Main Content -->
             <div id="content">
-
                 <!-- Topbar -->
                 <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-
                     <!-- Sidebar Toggle (Topbar) -->
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                         <i class="fa fa-bars"></i>
                     </button>
-
-
-                    <!-- Topbar Navbar -->
-                    <ul class="navbar-nav ml-auto">
-
-                        <div class="topbar-divider d-none d-sm-block"></div>
-
-                        <!-- Nav Item - User Information -->
-                        <li class="nav-item dropdown no-arrow">
-                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">@loggedInUser?.FirstName @loggedInUser?.LastName</span>
-                            </a>
-                            <!-- Dropdown - User Information -->
-                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                 aria-labelledby="userDropdown">
-
-                                <div class="dropdown-divider"></div>
-                                <form asp-action="Logout" asp-controller="User" asp-area="Admin" method="post">
-                                    <button type="submit" class="dropdown-item">
-                                        <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
-                                        Logout
-                                    </button>
-                                </form>
-                            </div>
-                        </li>
-
-                    </ul>
-
                 </nav>
                 <!-- End of Topbar -->
                 <!-- Begin Page Content -->
                 @RenderBody()
                 <!-- /.container-fluid -->
-
             </div>
             <!-- End of Main Content -->
             <!-- Footer -->
             <footer class="sticky-footer bg-white">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span>Copyright &copy; NewsBlog 2023</span>
+                        <span>Copyright &copy; NewsBlog</span>
                     </div>
                 </div>
             </footer>
             <!-- End of Footer -->
-
         </div>
         <!-- End of Content Wrapper -->
-
     </div>
     <!-- End of Page Wrapper -->
-    <!-- Scroll to Top Button-->
-    <a class="scroll-to-top rounded" href="#page-top">
-        <i class="fas fa-angle-up"></i>
-    </a>
 
     <!-- Bootstrap core JavaScript-->
     <script src="~/AdminDashboard/vendor/jquery/jquery.min.js"></script>

@@ -5,7 +5,6 @@
 <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <!-- Updated column size to col-lg-8 for a wider form -->
             <div class="card mt-5">
                 <div class="card-header bg-dark">
                     <h4 class="card-title text-white">Edit Post</h4>
@@ -13,39 +12,39 @@
                 <div class="card-body">
                     <form asp-action="Edit" asp-controller="Post" asp-area="Admin" enctype="multipart/form-data">
                         <input type="hidden" asp-for="Id" />
-                        <input type="hidden" asp-for="ImageUrl" />
-                        <input type="hidden" asp-for="VideoUrl" />
+                        <input type="hidden" asp-for="ImageUrl" id="hiddenImageUrl" />
+                        <input type="hidden" asp-for="VideoUrl" id="hiddenVideoUrl" />
 
                         <!-- Image upload section -->
                         <div class="text-center mb-3">
-                            @if (Model.ImageUrl != null)
-                            {
-                                <div class="d-flex justify-content-center">
-                                    <img src="~/images/@Model.ImageUrl" class="img-fluid mb-2" id="blogimage" style="max-height: 200px;" />
-                                </div>
-                            }
-                            <label class="btn btn-outline-secondary btn-block">
-                                Upload Image
-                                <input type="file" asp-for="UploadImage" class="d-none" id="uploadImage" accept="image/*" />
-                            </label>
+                            <div class="d-flex justify-content-center" id="imagePreviewContainer" style="display: @(Model.ImageUrl != null ? "flex" : "none"); justify-content: center;">
+                                <img src="~/images/@Model.ImageUrl" class="img-fluid mb-2" id="blogimage" style="max-height: 200px; display: @(Model.ImageUrl != null ? "block" : "none");" />
+                            </div>
+                            <div class="d-flex justify-content-center">
+                                <label class="btn btn-outline-secondary">
+                                    Upload Image
+                                    <input type="file" asp-for="UploadImage" class="d-none" id="uploadImage" accept="image/*" />
+                                </label>
+                                <button type="button" class="btn btn-outline-danger ml-2" id="removeImage" style="display: @(Model.ImageUrl != null ? "block" : "none");">Remove Image</button>
+                            </div>
                             <span asp-validation-for="UploadImage" class="text-danger"></span>
                         </div>
 
                         <!-- Video upload section -->
                         <div class="text-center mb-3">
-                            @if (Model.VideoUrl != null)
-                            {
-                                <div class="d-flex justify-content-center">
-                                    <video controls class="img-fluid mb-2" id="blogvideo" style="max-height: 200px;">
-                                        <source src="~/videos/@Model.VideoUrl" type="video/mp4">
-                                        Your browser does not support the video tag.
-                                    </video>
-                                </div>
-                            }
-                            <label class="btn btn-outline-secondary btn-block">
-                                Upload Video
-                                <input type="file" asp-for="UploadVideo" class="d-none" id="uploadVideo" accept="video/*" />
-                            </label>
+                            <div class="d-flex justify-content-center" id="videoPreviewContainer" style="display: @(Model.VideoUrl != null ? "flex" : "none"); justify-content: center;">
+                                <video controls class="img-fluid mb-2" id="blogvideo" style="max-height: 200px; display: @(Model.VideoUrl != null ? "block" : "none");">
+                                    <source src="~/videos/@Model.VideoUrl" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            <div class="d-flex justify-content-center">
+                                <label class="btn btn-outline-secondary">
+                                    Upload Video
+                                    <input type="file" asp-for="UploadVideo" class="d-none" id="uploadVideo" accept="video/*" />
+                                </label>
+                                <button type="button" class="btn btn-outline-danger ml-2" id="removeVideo" style="display: @(Model.VideoUrl != null ? "block" : "none");">Remove Video</button>
+                            </div>
                             <span asp-validation-for="UploadVideo" class="text-danger"></span>
                         </div>
 
@@ -87,11 +86,21 @@
                     var blogimage = document.getElementById('blogimage');
                     blogimage.src = e.target.result;
                     blogimage.style.display = 'block';
-                    blogimage.parentElement.style.display = 'flex';
-                    blogimage.parentElement.style.justifyContent = 'center';
+                    var imagePreviewContainer = document.getElementById('imagePreviewContainer');
+                    imagePreviewContainer.style.display = 'flex';
+                    imagePreviewContainer.style.justifyContent = 'center';
+                    document.getElementById('removeImage').style.display = 'block';
                 }
                 reader.readAsDataURL(file);
             }
+        });
+
+        document.getElementById('removeImage').addEventListener('click', function () {
+            document.getElementById('blogimage').style.display = 'none';
+            document.getElementById('imagePreviewContainer').style.display = 'none';
+            document.getElementById('uploadImage').value = '';
+            document.getElementById('removeImage').style.display = 'none';
+            document.getElementById('hiddenImageUrl').value = ''; // To remove from server and database
         });
 
         document.getElementById('uploadVideo').addEventListener('change', function () {
@@ -104,11 +113,23 @@
                     source.src = e.target.result;
                     video.load();
                     video.style.display = 'block';
-                    video.parentElement.style.display = 'flex';
-                    video.parentElement.style.justifyContent = 'center';
+                    var videoPreviewContainer = document.getElementById('videoPreviewContainer');
+                    videoPreviewContainer.style.display = 'flex';
+                    videoPreviewContainer.style.justifyContent = 'center';
+                    document.getElementById('removeVideo').style.display = 'block';
                 }
                 reader.readAsDataURL(file);
             }
+        });
+
+        document.getElementById('removeVideo').addEventListener('click', function () {
+            var video = document.getElementById('blogvideo');
+            video.style.display = 'none';
+            video.getElementsByTagName('source')[0].src = '';
+            document.getElementById('videoPreviewContainer').style.display = 'none';
+            document.getElementById('uploadVideo').value = '';
+            document.getElementById('removeVideo').style.display = 'none';
+            document.getElementById('hiddenVideoUrl').value = ''; // To remove from server and database
         });
     </script>
 }

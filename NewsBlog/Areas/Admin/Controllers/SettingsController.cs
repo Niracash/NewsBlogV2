@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using NewsBlog.Data;
 using NewsBlog.Models;
+using NewsBlog.Utilities;
 using NewsBlog.ViewModels;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NewsBlog.Areas.Admin.Controllers
 {
@@ -16,12 +18,14 @@ namespace NewsBlog.Areas.Admin.Controllers
         private readonly AppDbContext _db;
         private readonly INotyfService _notification;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly AuditLogService _auditLogService;
 
-        public SettingsController(AppDbContext db, INotyfService notyfService, IWebHostEnvironment webHostEnvironment)
+        public SettingsController(AppDbContext db, INotyfService notyfService, IWebHostEnvironment webHostEnvironment, AuditLogService auditLogService)
         {
             _db = db;
             _notification = notyfService;
             _webHostEnvironment = webHostEnvironment;
+            _auditLogService = auditLogService;
         }
 
         [HttpGet]
@@ -51,7 +55,7 @@ namespace NewsBlog.Areas.Admin.Controllers
         [HttpPost]
         public async Task<IActionResult> Index(SettingsViewModel settingsViewModel)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return View(settingsViewModel);
             }
@@ -61,17 +65,50 @@ namespace NewsBlog.Areas.Admin.Controllers
                 _notification.Error("Error 404 not found");
                 return View(settingsViewModel);
             }
-            settings.Logo = settingsViewModel.Logo;
-            settings.Title = settingsViewModel.Title;
-            settings.Description = settingsViewModel.Description;
-            settings.TwitterUrl = settingsViewModel.TwitterUrl;
-            settings.FacebookUrl = settingsViewModel.FacebookUrl;
-            settings.GithubUrl = settingsViewModel.GithubUrl;
+
+            // Compare original and new values for logging
+            var changes = new List<string>();
+            if (settings.Logo != settingsViewModel.Logo)
+            {
+                changes.Add("Logo");
+                settings.Logo = settingsViewModel.Logo;
+            }
+            if (settings.Title != settingsViewModel.Title)
+            {
+                changes.Add("Title");
+                settings.Title = settingsViewModel.Title;
+            }
+            if (settings.Description != settingsViewModel.Description)
+            {
+                changes.Add("Description");
+                settings.Description = settingsViewModel.Description;
+            }
+            if (settings.TwitterUrl != settingsViewModel.TwitterUrl)
+            {
+                changes.Add("TwitterUrl");
+                settings.TwitterUrl = settingsViewModel.TwitterUrl;
+            }
+            if (settings.FacebookUrl != settingsViewModel.FacebookUrl)
+            {
+                changes.Add("FacebookUrl");
+                settings.FacebookUrl = settingsViewModel.FacebookUrl;
+            }
+            if (settings.GithubUrl != settingsViewModel.GithubUrl)
+            {
+                changes.Add("GithubUrl");
+                settings.GithubUrl = settingsViewModel.GithubUrl;
+            }
 
             await _db.SaveChangesAsync();
             _notification.Success("Settings updated!");
+
+            if (changes.Count > 0)
+            {
+                var changesString = string.Join(", ", changes);
+                await _auditLogService.LogAsync("Settings Edited", $"<strong>Settings</strong> were edited by <strong>{User.Identity!.Name}</strong>. Changes: <strong>{changesString}<strong>.");
+            }
+
             return RedirectToAction("Index", "Settings", new { area = "Admin" });
         }
-
     }
 }

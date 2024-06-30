@@ -1,0 +1,110 @@
+﻿@using X.PagedList.Mvc.Core
+@using X.PagedList
+@model IPagedList<NewsBlog.ViewModels.AuditLogViewModel>
+
+@{
+    ViewData["Title"] = "Audit Log";
+}
+
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-dark">
+            <h4 class="m-0 font-weight-bold text-white">Audit Log</h4>
+        </div>
+        <div class="card-body">
+            <div class="input-group mb-3">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search Audit Logs" value="@ViewBag.CurrentFilter" />
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="button" onclick="clearSearch()">Clear</button>
+                </div>
+            </div>
+
+            <div class="table-responsive" id="auditLogContainer">
+                <table class="table table-bordered" id="auditLogTable">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Timestamp</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Count > 0)
+                        {
+                            @foreach (var log in Model)
+                            {
+                                string rowClass = log.Action switch
+                                {
+                                    "User Created" => "table-success",
+                                    "Password Reset" => "table-primary",
+                                    "User Deleted" => "table-danger",
+                                    "User Suspended" => "table-warning",
+                                    "User Unsuspended" => "table-info",
+                                    _ => ""
+                                };
+
+                                <tr class="@rowClass">
+                                    <td>@log.UserName</td>
+                                    <td>@log.Action</td>
+                                    <td>@log.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>@Html.Raw(log.Details)</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center">No audit logs found</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-center">
+                @Html.PagedListPager(Model, page => Url.Action("Index", new { page, searchString = ViewBag.CurrentFilter }), new PagedListRenderOptions
+           {
+               Display = PagedListDisplayMode.IfNeeded,
+               DisplayLinkToPreviousPage = PagedListDisplayMode.Always,
+               DisplayLinkToNextPage = PagedListDisplayMode.Always,
+               DisplayLinkToFirstPage = PagedListDisplayMode.Always,
+               DisplayLinkToLastPage = PagedListDisplayMode.Always,
+               UlElementClasses = new[] { "pagination", "justify-content-center" },
+               LiElementClasses = new[] { "page-item" },
+               PageClasses = new[] { "page-link" }
+           })
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#searchInput").on("keyup", function () {
+                var value = $(this).val().toLowerCase();
+                $.get('@Url.Action("Index", "AuditLog", new { area = "Admin" })', { searchString: value }, function (data) {
+                    var auditLogContainer = $(data).find("#auditLogContainer").html();
+                    $("#auditLogContainer").html(auditLogContainer);
+                    var pagers = $(data).find(".pagination");
+                    if (pagers.length) {
+                        $(".pagination").replaceWith(pagers);
+                    } else {
+                        $(".pagination").html("");
+                    }
+                    if (value) {
+                        history.pushState({}, '', '@Url.Action("Index", "AuditLog", new { area = "Admin" })' + '?searchString=' + value);
+                    } else {
+                        history.pushState({}, '', '@Url.Action("Index", "AuditLog", new { area = "Admin" })');
+                    }
+                });
+            });
+        });
+
+        function clearSearch() {
+            $('#searchInput').val('');
+            $('#searchInput').keyup();
+        }
+    </script>
+}

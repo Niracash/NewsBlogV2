@@ -1,5 +1,8 @@
 ﻿using NewsBlog.Data;
 using NewsBlog.Models;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Threading.Tasks;
 
 namespace NewsBlog.Utilities
 {
@@ -29,4 +32,3 @@ namespace NewsBlog.Utilities
         }
     }
 }
-

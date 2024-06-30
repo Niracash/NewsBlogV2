@@ -1,10 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NewsBlog.Data;
-using NewsBlog.Models;
-using X.PagedList;
+using NewsBlog.ViewModels;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using X.PagedList;
 
 namespace NewsBlog.Areas.Admin.Controllers
 {
@@ -12,20 +13,36 @@ namespace NewsBlog.Areas.Admin.Controllers
     [Authorize(Roles = "SuperAdmin")]
     public class AuditLogController : Controller
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _db;
 
-        public AuditLogController(AppDbContext context)
+        public AuditLogController(AppDbContext db)
         {
-            _context = context;
+            _db = db;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(int? page)
+        public async Task<IActionResult> Index(string searchString, int? page)
         {
-            var logs = await _context.AuditLogs.OrderByDescending(log => log.Timestamp).ToListAsync();
+            var logsQuery = _db.AuditLogs.AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                logsQuery = logsQuery.Where(x => x.UserName.Contains(searchString) || x.Action.Contains(searchString) || x.Details.Contains(searchString));
+                ViewBag.CurrentFilter = searchString;
+            }
+
+            var auditLogs = await logsQuery.OrderByDescending(x => x.Timestamp).ToListAsync();
+            var viewModel = auditLogs.Select(x => new AuditLogViewModel
+            {
+                UserName = x.UserName,
+                Action = x.Action,
+                Timestamp = x.Timestamp,
+                Details = x.Details
+            }).ToList();
+
             int pageSize = 10;
             int pageNumber = (page ?? 1);
-            return View(logs.ToPagedList(pageNumber, pageSize));
+            return View(viewModel.ToPagedList(pageNumber, pageSize));
         }
     }
 }

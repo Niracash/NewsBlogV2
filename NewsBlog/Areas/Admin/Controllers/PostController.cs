@@ -8,8 +8,8 @@ using NewsBlog.Data;
 using NewsBlog.Models;
 using NewsBlog.Utilities;
 using NewsBlog.ViewModels;
-using System.Configuration;
 using X.PagedList;
+using System.Linq;
 
 namespace NewsBlog.Areas.Admin.Controllers
 {
@@ -21,48 +21,66 @@ namespace NewsBlog.Areas.Admin.Controllers
         private readonly INotyfService _notification;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly UserManager<User> _userManager;
-        public PostController(AppDbContext db, INotyfService notyfService, IWebHostEnvironment webHostEnvironment, UserManager<User> userManager)
+        private readonly AuditLogService _auditLogService;
+
+        public PostController(AppDbContext db, INotyfService notyfService, IWebHostEnvironment webHostEnvironment, UserManager<User> userManager, AuditLogService auditLogService)
         {
             _db = db;
             _notification = notyfService;
             _webHostEnvironment = webHostEnvironment;
             _userManager = userManager;
+            _auditLogService = auditLogService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(int? page)
+        public async Task<IActionResult> Index(string searchString, int? page)
         {
-            var postList = new List<Post>();
             var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
             var userRole = await _userManager.GetRolesAsync(user!);
-            if (userRole[0] == Roles.Admin)
+
+            var postsQuery = _db.Posts!.Include(x => x.User).AsQueryable();
+            if (!userRole.Contains(Roles.Admin) && !userRole.Contains(Roles.SuperAdmin))
             {
-                postList = await _db.Posts!.Include(x => x.User).ToListAsync();
+                postsQuery = postsQuery.Where(x => x.User!.Id == user!.Id);
             }
-            else
+
+            if (!string.IsNullOrEmpty(searchString))
             {
-                postList = await _db.Posts!.Include(x => x.User).Where(x => x.User!.Id==user!.Id).ToListAsync();
+                var searchTerms = searchString.Split(' ');
+
+                postsQuery = postsQuery.Where(x => searchTerms.All(term =>
+                    x.Title.Contains(term) ||
+                    x.Description.Contains(term) ||
+                    (x.User != null && x.User.FirstName.Contains(term)) ||
+                    (x.User != null && x.User.LastName.Contains(term))));
+
+                ViewBag.CurrentFilter = searchString;
             }
-            var PostListViewModel = postList.Select(x => new PostListViewModel()
+
+            var postList = await postsQuery.OrderByDescending(x => x.CreatedAt).ToListAsync();
+
+            var postListViewModel = postList.Select(x => new PostListViewModel()
             {
                 Id = x.Id,
                 ImageUrl = x.ImageUrl,
                 VideoUrl = x.VideoUrl,
                 Title = x.Title,
                 Description = x.Description,
-                AuthorName = x.User!.FirstName + " " + x.User!.LastName,
-                CreatedAt = x.CreatedAt                
+                AuthorName = x.User != null ? x.User.FirstName + " " + x.User.LastName : x.AuthorName ?? "Unknown Author",
+                CreatedAt = x.CreatedAt,
+                Slug = x.Slug  // Ensure the Slug is mapped
             }).ToList();
+
             int pageSize = 6;
             int pageNumber = (page ?? 1);
-            return View(await PostListViewModel.OrderByDescending(x => x.CreatedAt).ToPagedListAsync(pageNumber, pageSize));
+            return View(await postListViewModel.ToPagedListAsync(pageNumber, pageSize));
         }
 
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
-            var post = await _db.Posts!.FirstOrDefaultAsync(x=>x.Id == id);
-            if(post == null)
+            var post = await _db.Posts!.FirstOrDefaultAsync(x => x.Id == id);
+            if (post == null)
             {
                 _notification.Error("Post not found");
                 return View();
@@ -70,7 +88,7 @@ namespace NewsBlog.Areas.Admin.Controllers
             // logged in user
             var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
             var userRole = await _userManager.GetRolesAsync(user!);
-            if (userRole[0] != Roles.Admin && user!.Id != post.UserId)
+            if (!userRole.Contains(Roles.Admin) && !userRole.Contains(Roles.SuperAdmin) && user!.Id != post.UserId)
             {
                 _notification.Error("This is not your post!");
                 return RedirectToAction("Index");
@@ -103,13 +121,21 @@ namespace NewsBlog.Areas.Admin.Controllers
                 return View();
             }
 
-            post.Title = createPostViewModel.Title;
-            post.Description = createPostViewModel.Description;
+            var changes = new List<string>();
+            if (post.Title != createPostViewModel.Title)
+            {
+                changes.Add("Title");
+                post.Title = createPostViewModel.Title;
+            }
+            if (post.Description != createPostViewModel.Description)
+            {
+                changes.Add("Description");
+                post.Description = createPostViewModel.Description;
+            }
 
-            // Check if a new image is uploaded
             if (createPostViewModel.UploadImage != null)
             {
-                // Delete old image if it exists
+                changes.Add("Image");
                 if (!string.IsNullOrEmpty(post.ImageUrl))
                 {
                     var oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, "images", post.ImageUrl);
@@ -118,17 +144,29 @@ namespace NewsBlog.Areas.Admin.Controllers
                         System.IO.File.Delete(oldImagePath);
                     }
                 }
-                // Save new image
                 post.ImageUrl = SaveFile(createPostViewModel.UploadImage, "images");
+            }
+            else if (string.IsNullOrEmpty(createPostViewModel.ImageUrl))
+            {
+                if (!string.IsNullOrEmpty(post.ImageUrl))
+                {
+                    var oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, "images", post.ImageUrl);
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                    }
+                    changes.Add("Image");
+                    post.ImageUrl = null;
+                }
             }
             else
             {
-                // Retain the old image URL
                 post.ImageUrl = createPostViewModel.ImageUrl;
             }
 
             if (createPostViewModel.UploadVideo != null)
             {
+                changes.Add("Video");
                 if (!string.IsNullOrEmpty(post.VideoUrl))
                 {
                     var oldVideoPath = Path.Combine(_webHostEnvironment.WebRootPath, "videos", post.VideoUrl);
@@ -139,40 +177,64 @@ namespace NewsBlog.Areas.Admin.Controllers
                 }
                 post.VideoUrl = SaveFile(createPostViewModel.UploadVideo, "videos");
             }
+            else if (string.IsNullOrEmpty(createPostViewModel.VideoUrl))
+            {
+                if (!string.IsNullOrEmpty(post.VideoUrl))
+                {
+                    var oldVideoPath = Path.Combine(_webHostEnvironment.WebRootPath, "videos", post.VideoUrl);
+                    if (System.IO.File.Exists(oldVideoPath))
+                    {
+                        System.IO.File.Delete(oldVideoPath);
+                    }
+                    changes.Add("Video");
+                    post.VideoUrl = null;
+                }
+            }
             else
             {
                 post.VideoUrl = createPostViewModel.VideoUrl;
             }
+
             await _db.SaveChangesAsync();
             _notification.Success("Post updated!");
+
+            if (changes.Count > 0)
+            {
+                var changesString = string.Join(", ", changes);
+                await _auditLogService.LogAsync("Post Edited", $"Post <strong>{post.Title}</strong> was edited by <strong>{User.Identity!.Name}</strong>. Changes: <strong>{changesString}</strong>.");
+            }
+
             return RedirectToAction("Index", "Post", new { area = "Admin" });
         }
+
 
         [HttpPost]
         public async Task<IActionResult> Create(CreatePostViewModel createPostViewModel)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return View(createPostViewModel);
             }
 
-            //get logged in user's id
+            // get logged in user's id and name
             var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
 
+            var post = new Post
+            {
+                Title = createPostViewModel.Title,
+                Description = createPostViewModel.Description,
+                UserId = user!.Id,
+                AuthorName = user.FirstName + " " + user.LastName, // Set AuthorName
+            };
 
-            var post = new Post();
-            post.Title = createPostViewModel.Title;
-            post.Description = createPostViewModel.Description;
-            post.UserId = user!.Id;
-
-            if(post.Title != null)
+            if (post.Title != null)
             {
                 string slug = createPostViewModel.Title!.Trim();
                 slug = slug.Replace(" ", "-");
-                post.Slug = slug +  "-" + Guid.NewGuid();
+                post.Slug = slug + "-" + Guid.NewGuid();
             }
 
-            if(createPostViewModel.UploadImage != null)
+            if (createPostViewModel.UploadImage != null)
             {
                 post.ImageUrl = SaveFile(createPostViewModel.UploadImage, "images");
             }
@@ -185,6 +247,7 @@ namespace NewsBlog.Areas.Admin.Controllers
             await _db.Posts!.AddAsync(post);
             await _db.SaveChangesAsync();
             _notification.Success("Blog created successfully");
+            await _auditLogService.LogAsync("Post Created", $"Post <strong>{post.Title}</strong> was created by <strong>{User.Identity!.Name}</strong>.");
 
             return RedirectToAction("Index");
         }
@@ -195,7 +258,7 @@ namespace NewsBlog.Areas.Admin.Controllers
             var autherPost = await _db.Posts!.FirstOrDefaultAsync(x => x.Id == id);
             var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
             var userRole = await _userManager.GetRolesAsync(user!);
-            if (userRole[0] == Roles.Admin || user?.Id == autherPost?.UserId)
+            if (userRole.Contains(Roles.Admin) || userRole.Contains(Roles.SuperAdmin) || user?.Id == autherPost?.UserId)
             {
                 // Delete the image from the server
                 if (!string.IsNullOrEmpty(autherPost!.ImageUrl))
@@ -219,6 +282,8 @@ namespace NewsBlog.Areas.Admin.Controllers
                 _db.Posts!.Remove(autherPost!);
                 await _db.SaveChangesAsync();
                 _notification.Success("Post have been deleted");
+                await _auditLogService.LogAsync("Post Deleted", $"Post <strong>{autherPost.Title}</strong> was deleted by <strong>{User.Identity!.Name}</strong>.");
+
                 return RedirectToAction("Index", "Post", new { area = "Admin" });
             }
             return View();
@@ -229,19 +294,6 @@ namespace NewsBlog.Areas.Admin.Controllers
         {
             return View(new CreatePostViewModel());
         }
-
-        //private string Image(IFormFile file)
-        //{
-        //    string uniqueFileName = "";
-        //    var folderPath = Path.Combine(_webHostEnvironment.WebRootPath, "images");
-        //    uniqueFileName = Guid.NewGuid().ToString()+ "_" + file.FileName;
-        //    var filePath = Path.Combine(folderPath, uniqueFileName);
-        //    using(FileStream fileStream = System.IO.File.OpenWrite(filePath))
-        //    {
-        //        file.CopyTo(fileStream);
-        //    }
-        //    return uniqueFileName;
-        //}
 
         private string SaveFile(IFormFile file, string folderName)
         {
